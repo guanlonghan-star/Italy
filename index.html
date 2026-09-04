@@ -36,6 +36,7 @@ main{max-width:900px!important}.intro,.day{background:var(--paper)!important;bor
 .schedule th{background:var(--green)!important}.mapbtn{background:var(--green)!important;border:2px solid var(--deep);box-shadow:3px 3px 0 var(--deep)!important}.note td{background:#eadfca!important}.route-map{border:2px solid var(--deep)!important;box-shadow:4px 5px 0 #dbc8a7}
 .pwa-tools{position:absolute;left:max(20px,calc((100vw - 820px)/2));bottom:27px;z-index:3;display:flex;align-items:center;gap:9px}.pwa-tools button{padding:10px 14px;border:2px solid var(--deep);border-radius:999px;background:var(--gold);color:var(--deep);font-weight:900;box-shadow:3px 3px 0 var(--deep)}.pwa-status{padding:7px 10px;border:1px solid #8a7b62;border-radius:999px;background:#fffaf0c9;color:#6f6759;font-size:11px}
 .sketch{position:relative;height:205px;margin:8px 0 18px;border:2px solid var(--deep);border-radius:18px;background:radial-gradient(#cfdbc655 1px,transparent 1px) 0 0/12px 12px,#f5efdf;overflow:hidden;box-shadow:inset 0 0 0 5px #fffaf0}.sketch svg{width:100%;height:100%}.sketch path{fill:none;stroke:var(--red);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:7 9}.sketch circle{fill:var(--gold);stroke:var(--deep);stroke-width:3}.sketch text{font:800 12px Arial;fill:var(--deep);text-anchor:middle;dominant-baseline:central}.sketch-title{position:absolute;top:10px;left:13px;color:var(--green);font-size:10px;font-weight:900;letter-spacing:.1em}
+.source-schedule{display:none}.next-stop-list{list-style:none;margin:10px 0 18px;padding:0}.next-stop-list li{margin:0 0 10px}.next-stop-card{display:grid;grid-template-columns:34px 1fr 24px;gap:10px;align-items:center;min-height:76px;padding:11px 10px;border:1px solid var(--line);border-radius:13px;background:#fffdf7;color:inherit;text-decoration:none;box-shadow:2px 3px 0 #e2d4bc}.next-stop-card:active{transform:translate(1px,1px);box-shadow:1px 1px 0 #e2d4bc}.stop-number{display:grid;place-items:center;width:32px;height:32px;border:2px solid var(--deep);border-radius:50%;background:var(--gold);font-size:10px;font-weight:900}.stop-copy{display:grid;gap:2px}.stop-copy strong{font-size:14px}.stop-copy small{color:#746d61;font-size:12px}.stop-copy em{color:var(--green);font-size:10px;font-style:normal;font-weight:800}.stop-arrow{color:var(--red);font-size:22px;font-weight:900;text-align:center}.segment-mode{display:inline-block;margin-left:6px;padding:1px 5px;border-radius:999px;background:#e1ece6;color:var(--green);font-size:9px}
 .install-sheet{display:none;position:fixed;inset:0;z-index:999;background:#13201ccc;padding:18px}.install-sheet.show{display:grid;place-items:end center}.install-card{width:min(100%,520px);padding:21px;border-radius:20px;background:var(--paper);box-shadow:0 20px 50px #0008}.install-card h2{margin:0 0 9px}.install-card p{font-size:14px}.install-card button{width:100%;padding:12px;border:0;border-radius:10px;background:var(--deep);color:white;font-weight:900}
 @media(max-width:520px){header{min-height:370px}.pwa-tools{left:20px}.intro{margin-top:4px}.day{transform:none!important}.sketch{height:180px}}
 </style>
@@ -50,6 +51,43 @@ main{max-width:900px!important}.intro,.day{background:var(--paper)!important;bor
     const dots=used.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="12"></circle><text x="'+p[0]+'" y="'+p[1]+'">'+(i+1)+'</text>').join('');
     const box=document.createElement('div');box.className='sketch';box.setAttribute('aria-label','Route sketch');box.innerHTML='<span class="sketch-title">DAY '+String(day+1).padStart(2,'0')+' / ROUTE SKETCH</span><svg viewBox="0 0 330 190"><path d="'+path+'"></path>'+dots+'</svg>';
     const content=card.querySelector('.content');if(content)content.insertBefore(box,content.firstChild);
+  });
+  const segmentMode=(day,a,b)=>{
+    if(day===4)return 'driving';
+    const longLeg=/FCO|Termini|S\.M\.N|The Mall|Montelungo|Salerno|Amalfi|Ravello|Positano|\u673a\u573a|\u706b\u8f66|\u7801\u5934|\u7801\u5934|\u9ad8\u94c1|\u5df4\u58eb/;
+    if([1,3,7,8].includes(day)&&longLeg.test(a+' '+b))return 'transit';
+    if(/\u7c73\u5f00\u6717\u57fa\u7f57\u5e7f\u573a/.test(b))return 'transit';
+    return 'walking';
+  };
+  const segmentRoute=(a,b,mode)=>'https://www.google.com/maps/dir/?api=1&origin='+encodeURIComponent(a)+'&destination='+encodeURIComponent(b)+'&travelmode='+mode;
+  const placeSearch=a=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(a);
+  const modeLabel={walking:'\u6b65\u884c',transit:'\u516c\u5171\u4ea4\u901a',driving:'\u9a7e\u8f66'};
+  const preciseCoords={
+    1:['41.8003,12.2389','41.7931,12.2519','41.9010,12.5018','43.7763,11.2478','43.7731,11.2555'],
+    2:['43.7731,11.2560','43.7768,11.2588','43.7749,11.2539','43.7766,11.2535','43.7731,11.2560','43.7678,11.2553','43.7678,11.2553','43.7680,11.2531','43.7629,11.2650','43.7662,11.2486'],
+    3:['43.7731,11.2555','43.7823,11.2470','43.7025,11.4614','43.7686,11.2626'],
+    4:['43.7731,11.2555','43.3186,11.3307','43.3177,11.3289','43.0775,11.6790','43.0775,11.6790','43.0709,11.6344','41.8995,12.4762','41.8986,12.4769'],
+    5:['41.8995,12.4762','41.8882,12.4814','41.8853,12.4801','41.8855,12.4851','41.8902,12.4922','41.8910,12.4875','41.8895,12.4695'],
+    6:['41.8995,12.4762','41.8957,12.4722','41.8971,12.4666','41.9031,12.4663','41.9034,12.4608','41.9065,12.4536','41.9022,12.4539','41.8992,12.4731'],
+    7:['41.8995,12.4762','41.9010,12.5018','40.6756,14.7720','40.6740,14.7768','40.6334,14.6029','40.6499,14.6113','40.6758,14.7727'],
+    8:['40.6758,14.7727','40.6274,14.4872','40.6756,14.7720'],
+    9:['41.8995,12.4762','41.9142,12.4922','41.9128,12.4850','41.9107,12.4764','41.9058,12.4823','41.9009,12.4833','41.8986,12.4769','41.8998,12.4747','41.8992,12.4731']
+  };
+  const skipLocation=loc=>!loc||loc.includes('\u2192')||/^(\u5165\u5883.?\u884c\u674e|\u6597\u517d\u573a\u9644\u8fd1|\u666e\u62c9\u8482\u533a|\u9644\u8fd1|\u8001\u57ce|\u8001\u57ce.?\u9152\u5e97\u9644\u8fd1|\u4f5b\u7f57\u4f26\u8428|\u4f5b\u7f57\u4f26\u8428\u8001\u57ce|\u89c2\u666f\u8def\u6bb5|\u9521\u8036\u7eb3)$/.test(loc);
+  document.querySelectorAll('.day[data-day]').forEach(card=>{
+    const table=card.querySelector('.schedule');if(!table)return;
+    const day=Number(card.dataset.day);const rawRows=[...table.querySelectorAll('tr')].slice(1).map(row=>[...row.querySelectorAll('td')].map(c=>c.textContent.trim())).filter(c=>c.length>=3&&!skipLocation(c[1])).map((c,i)=>[...c,preciseCoords[day]?.[i]||c[1]]);
+    const deduped=[];rawRows.forEach(c=>{const last=deduped.at(-1);if(last&&(last[1]===c[1]||last[3]===c[3])){last[0]+=' / '+c[0];last[2]+='\uff1b'+c[2]}else deduped.push(c)});const rows=deduped;
+    if(rows.length<2)return;
+    const list=document.createElement('ol');list.className='next-stop-list';
+    rows.forEach((cells,i)=>{
+      const current=cells[1],next=rows[i+1]?.[1],currentPoint=cells[3],nextPoint=rows[i+1]?.[3],mode=next?segmentMode(day,current,next):'walking';
+      const li=document.createElement('li'),a=document.createElement('a');a.className='next-stop-card';a.target='_blank';a.rel='noreferrer';a.href=next?segmentRoute(currentPoint,nextPoint,mode):placeSearch(currentPoint);
+      const num=document.createElement('b');num.className='stop-number';num.textContent=String(i+1).padStart(2,'0');
+      const copy=document.createElement('span');copy.className='stop-copy';const title=document.createElement('strong');title.textContent=current;const detail=document.createElement('small');detail.textContent=cells[0]+' · '+cells[2];const nav=document.createElement('em');nav.textContent=next?'\u4e0b\u4e00\u7ad9\uff1a'+next:'\u5728 Google Maps \u67e5\u770b\u6b64\u5730';if(next){const badge=document.createElement('i');badge.className='segment-mode';badge.textContent=modeLabel[mode];nav.appendChild(badge)}
+      const arrow=document.createElement('span');arrow.className='stop-arrow';arrow.textContent='\u203a';copy.append(title,detail,nav);a.append(num,copy,arrow);li.appendChild(a);list.appendChild(li);
+    });
+    const wrap=table.closest('.tablewrap');wrap.classList.add('source-schedule');wrap.parentNode.insertBefore(list,wrap);
   });
   document.querySelectorAll('.nav a').forEach(a=>a.addEventListener('click',()=>{document.querySelectorAll('.nav a').forEach(x=>x.classList.remove('active'));a.classList.add('active')}));
   const status=document.querySelector('#pwa-status');const update=()=>status.textContent=navigator.onLine?'ONLINE':'OFFLINE';addEventListener('online',update);addEventListener('offline',update);update();
